@@ -1,6 +1,121 @@
-"""Pipeline orchestrator — coordinates scraping, detection, and email sending."""
+"""Daily pipeline orchestrator — scrape → detect → save → send."""
+
+import logging
+import os
+from datetime import UTC, datetime
+
+from sqlmodel import Session, select
+
+from app.database import engine
+from app.models import EmailLog, Job
+from app.scrapers.gupy import fetch_gupy_jobs
+from app.services.email_sender import RateLimitExceeded, send_email
+from app.services.lang_detector import detect_language
+from app.services.template_engine import render_template
+
+logger = logging.getLogger(__name__)
+
+_SENDER_VARS = {
+    "sender_name": os.getenv("SENDER_NAME", ""),
+    "contact_info": os.getenv("SENDER_EMAIL", ""),
+    "whatsapp_link": os.getenv("SENDER_WHATSAPP", ""),
+    "linkedin_link": os.getenv("SENDER_LINKEDIN", ""),
+    "github_link": os.getenv("SENDER_GITHUB", ""),
+    "portfolio": os.getenv("SENDER_PORTFOLIO", ""),
+}
 
 
-async def run_pipeline() -> dict[str, int]:
-    """Stub: returns {scraped, emails_found, sent, errors}."""
-    raise NotImplementedError
+def _load_config() -> tuple[list[str], list[str]]:
+    keywords = [k.strip() for k in os.getenv("SEARCH_KEYWORDS", "developer").split(",")]
+    cities = [c.strip() for c in os.getenv("SEARCH_CITIES", "São Paulo").split(",")]
+    return keywords, cities
+
+
+def _url_exists(session: Session, url: str) -> bool:
+    return session.exec(select(Job).where(Job.url == url)).first() is not None
+
+
+def _save_job(session: Session, data: dict, language: str) -> Job:
+    job = Job(
+        title=data["title"],
+        company=data["company"],
+        url=data["url"],
+        description=data.get("description", ""),
+        email=data.get("email"),
+        language=language,
+        status="new",
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    return job
+
+
+def _log_email(
+    session: Session,
+    job: Job,
+    subject: str,
+    lang: str,
+    error: str | None = None,
+) -> None:
+    log = EmailLog(
+        job_id=job.id,  # type: ignore[arg-type]
+        subject=subject,
+        template_lang=lang,
+        sent_at=datetime.now(UTC),
+        error_message=error,
+    )
+    session.add(log)
+    session.commit()
+
+
+async def run_daily_pipeline() -> dict[str, int]:
+    """Run the full daily pipeline. Always returns summary even on partial failure."""
+    keywords, cities = _load_config()
+    summary: dict[str, int] = {"scraped": 0, "emails_found": 0, "sent": 0, "errors": 0}
+
+    raw_jobs = await fetch_gupy_jobs(keywords, cities)
+    summary["scraped"] = len(raw_jobs)
+
+    rate_limited = False
+
+    with Session(engine) as session:
+        for data in raw_jobs:
+            try:
+                if _url_exists(session, data["url"]):
+                    continue
+
+                lang = detect_language(data["title"], data.get("description", ""))
+                job = _save_job(session, data, lang)
+
+                if not job.email:
+                    continue
+
+                summary["emails_found"] += 1
+
+                if rate_limited:
+                    continue
+
+                subject, body = render_template(lang, {**_SENDER_VARS, "job_title": job.title, "company": job.company})
+
+                sent = send_email(job.email, subject, body)
+
+                if sent:
+                    job.status = "sent"
+                    job.sent_at = datetime.now(UTC)
+                    session.add(job)
+                    _log_email(session, job, subject, lang)
+                    summary["sent"] += 1
+                else:
+                    _log_email(session, job, subject, lang, error="send_failed")
+                    summary["errors"] += 1
+
+            except RateLimitExceeded:
+                logger.warning("Daily rate limit reached — stopping sends.")
+                rate_limited = True
+
+            except Exception as exc:
+                logger.error("Pipeline error on job %s: %s", data.get("url"), exc)
+                summary["errors"] += 1
+
+    return summary

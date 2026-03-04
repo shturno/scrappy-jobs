@@ -1,0 +1,30 @@
+name: Daily Job Scraper
+
+on:
+  schedule:
+    - cron: "0 11 * * *" # 11:00 UTC = 08:00 BRT
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    name: Trigger daily pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger pipeline
+        id: trigger
+        run: |
+          RESPONSE=$(curl --silent --show-error --fail \
+            --max-time 270 \
+            -X POST "${{ secrets.BACKEND_URL }}/api/pipeline/run" \
+            -H "Content-Type: application/json")
+          echo "response=$RESPONSE" >> "$GITHUB_OUTPUT"
+          echo "Pipeline response: $RESPONSE"
+
+      - name: Log result
+        run: |
+          echo "### Pipeline Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          echo '${{ steps.trigger.outputs.response }}' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
