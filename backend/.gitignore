@@ -1,0 +1,32 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+# Ignores the venv directory contents but NOT the app source
+bin/
+include/
+lib/
+lib64
+pyvenv.cfg
+share/
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs.*.json
+
+# Env files
+.env
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# MyPy
+.mypy_cache/
