@@ -31,3 +31,6 @@ Thumbs.db
 # OAuth tokens
 token.json
 credentials.json
+
+# Tests
+.coverage
