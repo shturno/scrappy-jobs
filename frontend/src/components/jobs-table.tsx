@@ -48,8 +48,11 @@ function timeAgo(iso: string): string {
 export function JobsTable() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [status, setStatus] = useState("all");
+  const [lang, setLang] = useState("all");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const filtered = lang === "all" ? jobs : jobs.filter((j) => j.language === lang);
 
   useEffect(() => {
     setLoading(true);
@@ -58,6 +61,8 @@ export function JobsTable() {
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
   }, [status, page]);
+
+  function changeLang(v: string) { setLang(v); setPage(0); }
 
   function renderRows() {
     if (loading) {
@@ -96,7 +101,7 @@ export function JobsTable() {
       );
     }
 
-    return jobs.map((job) => (
+    return filtered.map((job) => (
       <TableRow
         key={job.id}
         className="group cursor-pointer transition-colors duration-100"
@@ -153,26 +158,52 @@ export function JobsTable() {
     <div className="flex flex-col gap-5">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <Select value={status} onValueChange={(v) => { setStatus(v); setPage(0); }}>
-          <SelectTrigger
-            className="w-[160px] h-8 text-xs font-medium rounded-lg"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "rgba(255,255,255,0.6)",
-            }}
-          >
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent
-            style={{ background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            <SelectItem value="all" className="text-white/60 text-xs focus:bg-white/5">All statuses</SelectItem>
-            {["new", "email_collected", "sent", "error", "skipped"].map((s) => (
-              <SelectItem key={s} value={s} className="capitalize text-white/60 text-xs focus:bg-white/5">{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Select value={status} onValueChange={(v) => { setStatus(v); setPage(0); }}>
+            <SelectTrigger
+              className="w-[160px] h-8 text-xs font-medium rounded-lg"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.6)",
+              }}
+            >
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent
+              style={{ background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <SelectItem value="all" className="text-white/60 text-xs focus:bg-white/5">All statuses</SelectItem>
+              {["new", "email_collected", "sent", "error", "skipped"].map((s) => (
+                <SelectItem key={s} value={s} className="capitalize text-white/60 text-xs focus:bg-white/5">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Language toggle */}
+          <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+            {(["all", "pt", "en"] as const).map((l) => {
+              const labels: Record<string, string> = { all: "Todos", pt: "Português", en: "English" };
+              const active = lang === l;
+              const borderRight = l === "en" ? undefined : "1px solid rgba(255,255,255,0.08)";
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => changeLang(l)}
+                  className="h-8 px-3 text-[11px] font-medium transition-colors"
+                  style={{
+                    background: active ? "rgba(124,58,237,0.25)" : "rgba(255,255,255,0.03)",
+                    color: active ? "#c4b5fd" : "rgba(255,255,255,0.4)",
+                    borderRight,
+                  }}
+                >
+                  {labels[l]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="flex items-center gap-4 text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>
           <button
@@ -186,7 +217,7 @@ export function JobsTable() {
           <span className="tabular-nums text-white/40">Page {page + 1}</span>
           <button
             type="button"
-            disabled={jobs.length < PAGE_SIZE}
+            disabled={filtered.length < PAGE_SIZE}
             onClick={() => setPage((p) => p + 1)}
             className="hover:text-white/60 disabled:opacity-25 transition-colors"
           >
