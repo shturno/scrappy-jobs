@@ -13,35 +13,55 @@ export default async function DashboardPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      {/* Header */}
-      <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-bold tracking-tight text-white">JobScout</span>
-            <span className="text-xs text-zinc-500 border border-zinc-800 rounded px-2 py-0.5">
-              MVP
-            </span>
+    <div className="min-h-screen">
+      {/* ── Header ─────────────────────────────────────── */}
+      <header
+        className="sticky top-0 z-20 flex items-center justify-between h-16 px-8"
+        style={{
+          background: "rgba(0,0,0,0.75)",
+          backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        {/* Planet logo + wordmark */}
+        <div className="flex items-center gap-3">
+          <div className="relative w-8 h-8 flex-shrink-0">
+            {/* Planet body */}
+            <div
+              className="absolute inset-[5px] rounded-full bg-gradient-to-br from-violet-400 via-violet-600 to-indigo-800"
+              style={{ boxShadow: "0 0 14px rgba(124,58,237,0.7), 0 0 4px rgba(124,58,237,0.9)" }}
+            />
+            {/* Ring */}
+            <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full" fill="none">
+              <ellipse
+                cx="16" cy="16" rx="13" ry="5"
+                stroke="rgba(196,181,253,0.85)" strokeWidth="1.5"
+                fill="none" transform="rotate(-28 16 16)"
+                strokeLinecap="round"
+              />
+            </svg>
           </div>
-          <ConfigPanel />
+          <span className="text-[15px] font-bold text-white tracking-tight">JobScout</span>
         </div>
+
+        <ConfigPanel />
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 flex flex-col gap-8">
-        {/* Stats bar */}
-        <section>
-          <StatsBar initialStats={stats} />
-        </section>
+      {/* ── Stats ──────────────────────────────────────── */}
+      <StatsBar initialStats={stats} />
 
-        {/* Jobs table */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">
-              Jobs
-            </h2>
-          </div>
-          <JobsTable />
-        </section>
+      {/* ── Jobs ───────────────────────────────────────── */}
+      <main className="max-w-5xl mx-auto px-8 py-10">
+        <div className="mb-8">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-400 mb-2">
+            Tracked opportunities
+          </p>
+          <h2 className="text-xl font-bold text-white">Jobs</h2>
+          <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+            All scraped positions and their current status
+          </p>
+        </div>
+        <JobsTable />
       </main>
     </div>
   );

@@ -2,14 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Settings2, Save, Loader2 } from "lucide-react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { TagsInput } from "@/components/tags-input";
 import { getConfig, updateConfig, type AppConfig } from "@/lib/api";
 
@@ -23,11 +19,7 @@ export function ConfigPanel() {
   useEffect(() => {
     if (!open) return;
     getConfig()
-      .then((c) => {
-        setConfig(c);
-        setKeywords(c.search_keywords);
-        setCities(c.search_cities);
-      })
+      .then((c) => { setConfig(c); setKeywords(c.search_keywords); setCities(c.search_cities); })
       .catch(() => toast.error("Failed to load config"));
   }, [open]);
 
@@ -46,56 +38,135 @@ export function ConfigPanel() {
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-3 h-8 rounded-lg text-[12px] font-medium transition-all duration-150"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          color: "rgba(255,255,255,0.5)",
+        }}
+        onMouseEnter={(e) => {
+          const el = e.currentTarget as HTMLButtonElement;
+          el.style.background = "rgba(255,255,255,0.07)";
+          el.style.borderColor = "rgba(255,255,255,0.18)";
+          el.style.color = "rgba(255,255,255,0.85)";
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget as HTMLButtonElement;
+          el.style.background = "rgba(255,255,255,0.04)";
+          el.style.borderColor = "rgba(255,255,255,0.1)";
+          el.style.color = "rgba(255,255,255,0.5)";
+        }}
+      >
+        <Settings2 size={13} />
+        Config
+      </button>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          className="flex flex-col p-0 gap-0 w-[380px]"
+          style={{
+            background: "#000",
+            borderLeft: "1px solid rgba(255,255,255,0.1)",
+          }}
         >
-          ⚙ Config
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="border-zinc-800 bg-zinc-950 text-zinc-100 w-[360px]">
-        <SheetHeader className="mb-6">
-          <SheetTitle className="text-zinc-100">Pipeline Config</SheetTitle>
-        </SheetHeader>
-
-        {config == null ? (
-          <p className="text-zinc-500 text-sm">Loading…</p>
-        ) : (
-          <div className="flex flex-col gap-6">
-            <TagsInput
-              label="Search keywords"
-              tags={keywords}
-              onChange={setKeywords}
-              placeholder="desenvolvedor backend, react…"
-            />
-
-            <TagsInput
-              label="Search cities"
-              tags={cities}
-              onChange={setCities}
-              placeholder="São Paulo, Curitiba…"
-            />
-
-            <div className="rounded-md border border-zinc-800 bg-zinc-900/50 p-3 space-y-1 text-sm text-zinc-400">
-              <p><span className="text-zinc-500">Daily limit:</span> {config.daily_limit}</p>
-              <p><span className="text-zinc-500">Sender:</span> {config.sender_name || "—"}</p>
-              <p><span className="text-zinc-500">LinkedIn:</span> {config.sender_linkedin || "—"}</p>
-              <p><span className="text-zinc-500">GitHub:</span> {config.sender_github || "—"}</p>
-              <p><span className="text-zinc-500">Portfolio:</span> {config.sender_portfolio || "—"}</p>
+          {/* Header */}
+          <SheetHeader
+            className="px-6 pt-7 pb-6"
+            style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)" }}
+              >
+                <Settings2 size={14} className="text-violet-400" />
+              </div>
+              <SheetTitle className="text-[15px] font-bold text-white">Config</SheetTitle>
             </div>
+            <SheetDescription className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Keywords and cities for the Gupy scraper. Changes apply on the next launch.
+            </SheetDescription>
+          </SheetHeader>
 
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white"
-            >
-              {saving ? "Saving…" : "Save config"}
-            </Button>
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+            {config == null ? (
+              <div className="flex items-center gap-2 text-[13px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                <Loader2 size={13} className="animate-spin text-violet-500" />
+                Loading…
+              </div>
+            ) : (
+              <>
+                <section className="space-y-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-400">Keywords</p>
+                    <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      Job titles to search on Gupy
+                    </p>
+                  </div>
+                  <TagsInput label="" tags={keywords} onChange={setKeywords} placeholder="React Developer, Backend…" />
+                </section>
+
+                <section className="space-y-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-400">Cities</p>
+                    <p className="text-[11px] mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      Use &quot;Remoto&quot; for remote listings
+                    </p>
+                  </div>
+                  <TagsInput label="" tags={cities} onChange={setCities} placeholder="São Paulo, Remoto…" />
+                </section>
+
+                <section style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "24px" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-violet-400 mb-4">Sender</p>
+                  <div className="space-y-0 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
+                    {[
+                      ["Name", config.sender_name],
+                      ["Daily limit", `${config.daily_limit} / day`],
+                      ["LinkedIn", config.sender_linkedin],
+                      ["GitHub", config.sender_github],
+                    ].map(([k, v], i, arr) => (
+                      <div
+                        key={k}
+                        className="flex justify-between items-center px-4 py-3"
+                        style={{
+                          borderBottom: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                        }}
+                      >
+                        <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>{k}</span>
+                        <span className="text-[11px] text-white/60 truncate max-w-[190px] text-right">{v || "—"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
           </div>
-        )}
-      </SheetContent>
-    </Sheet>
+
+          {/* Footer */}
+          <div className="px-6 py-5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || config == null || keywords.length === 0 || cities.length === 0}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl font-semibold text-[13px] text-white transition-all duration-150 disabled:opacity-40"
+              style={{
+                background: "rgba(124,58,237,0.9)",
+                border: "1px solid rgba(124,58,237,0.5)",
+                boxShadow: "0 0 16px rgba(124,58,237,0.3)",
+              }}
+            >
+              {saving
+                ? <><Loader2 size={13} className="animate-spin" />Saving…</>
+                : <><Save size={13} />Save config</>}
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

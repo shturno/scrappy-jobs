@@ -2,45 +2,47 @@
 
 import { useEffect, useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { Satellite } from "lucide-react";
 import { getJobs, type Job } from "@/lib/api";
 
 const PAGE_SIZE = 20;
 
-const STATUS_STYLES: Record<string, string> = {
-  new: "bg-zinc-700 text-zinc-200 hover:bg-zinc-700",
-  email_collected: "bg-blue-900/60 text-blue-300 hover:bg-blue-900/60",
-  sent: "bg-emerald-900/60 text-emerald-300 hover:bg-emerald-900/60",
-  error: "bg-red-900/60 text-red-300 hover:bg-red-900/60",
-  skipped: "bg-zinc-800 text-zinc-400 hover:bg-zinc-800",
+const STATUS_DOT: Record<string, string> = {
+  sent:            "#10b981",
+  email_collected: "#7c3aed",
+  error:           "#f43f5e",
+  new:             "rgba(255,255,255,0.3)",
+  skipped:         "rgba(255,255,255,0.15)",
 };
 
-const LANG_STYLES: Record<string, string> = {
-  pt: "bg-green-900/50 text-green-300 hover:bg-green-900/50",
-  en: "bg-indigo-900/50 text-indigo-300 hover:bg-indigo-900/50",
+const STATUS_LABEL: Record<string, string> = {
+  sent:            "text-emerald-400",
+  email_collected: "text-violet-400",
+  error:           "text-rose-400",
+  new:             "text-white/40",
+  skipped:         "text-white/25",
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  });
+const LANG_CONFIG: Record<string, { color: string; bg: string }> = {
+  pt: { color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
+  en: { color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
+};
+
+function timeAgo(iso: string): string {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
 }
 
 export function JobsTable() {
@@ -61,102 +63,158 @@ export function JobsTable() {
     if (loading) {
       return (
         <TableRow>
-          <TableCell colSpan={6} className="text-center text-zinc-500 py-12">
-            Loading…
+          <TableCell colSpan={6} className="py-20 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-full border-2 border-t-violet-500 border-violet-500/20 animate-spin"
+              />
+              <span className="text-sm text-white/40">Scanning orbit…</span>
+            </div>
           </TableCell>
         </TableRow>
       );
     }
+
     if (jobs.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={6} className="text-center text-zinc-500 py-12">
-            No jobs found
+          <TableCell colSpan={6} className="py-24 text-center">
+            <div className="flex flex-col items-center gap-5">
+              <div
+                className="w-16 h-16 rounded-full border flex items-center justify-center"
+                style={{ borderColor: "rgba(124,58,237,0.25)", background: "rgba(124,58,237,0.05)" }}
+              >
+                <Satellite size={26} className="text-violet-500/50" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-white/30">No signals detected</p>
+                <p className="text-sm mt-1 text-white/20">Launch the pipeline to start tracking</p>
+              </div>
+            </div>
           </TableCell>
         </TableRow>
       );
     }
+
     return jobs.map((job) => (
       <TableRow
         key={job.id}
-        className="border-zinc-800 hover:bg-zinc-900/40 transition-colors cursor-pointer"
+        className="group cursor-pointer transition-colors duration-100"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
         onClick={() => window.open(job.url, "_blank")}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "rgba(124,58,237,0.04)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
       >
-        <TableCell className="text-zinc-200 font-medium">{job.company}</TableCell>
-        <TableCell className="text-zinc-300 max-w-[200px] truncate">{job.title}</TableCell>
-        <TableCell>
-          {job.language && (
-            <Badge className={`text-xs uppercase ${LANG_STYLES[job.language] ?? ""}`}>
-              {job.language}
-            </Badge>
-          )}
+        <TableCell className="py-4 pl-6">
+          <span className="font-semibold text-white text-[13px]">{job.company}</span>
         </TableCell>
-        <TableCell className="text-zinc-400 text-sm max-w-[180px] truncate">
-          {job.email ?? <span className="text-zinc-600">—</span>}
+        <TableCell className="py-4 max-w-[220px]">
+          <span className="text-[13px] truncate block" style={{ color: "rgba(255,255,255,0.5)" }}>
+            {job.title}
+          </span>
         </TableCell>
-        <TableCell>
-          <Badge className={`text-xs capitalize ${STATUS_STYLES[job.status] ?? ""}`}>
-            {job.status}
-          </Badge>
+        <TableCell className="py-4">
+          {job.language && (() => {
+            const cfg = LANG_CONFIG[job.language];
+            return cfg ? (
+              <span
+                className="text-[10px] font-bold uppercase px-2 py-1 rounded-md"
+                style={{ color: cfg.color, background: cfg.bg }}
+              >
+                {job.language}
+              </span>
+            ) : null;
+          })()}
         </TableCell>
-        <TableCell className="text-zinc-500 text-sm">
-          {formatDate(job.created_at)}
+        <TableCell className="py-4 max-w-[180px]">
+          <span className="text-[12px] truncate block" style={{ color: "rgba(255,255,255,0.3)" }}>
+            {job.email ?? "—"}
+          </span>
+        </TableCell>
+        <TableCell className="py-4">
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ background: STATUS_DOT[job.status] ?? "rgba(255,255,255,0.2)" }}
+            />
+            <span className={`text-[11px] font-medium capitalize ${STATUS_LABEL[job.status] ?? "text-white/30"}`}>
+              {job.status}
+            </span>
+          </span>
+        </TableCell>
+        <TableCell className="py-4 pr-6 text-[11px] tabular-nums" style={{ color: "rgba(255,255,255,0.25)" }}>
+          {timeAgo(job.created_at)}
         </TableCell>
       </TableRow>
     ));
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <Select value={status} onValueChange={(v) => { setStatus(v); setPage(0); }}>
-          <SelectTrigger className="w-[160px] border-zinc-700 bg-zinc-900 text-zinc-200">
-            <SelectValue placeholder="Filter by status" />
+          <SelectTrigger
+            className="w-[160px] h-8 text-xs font-medium rounded-lg"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            <SelectValue placeholder="All statuses" />
           </SelectTrigger>
-          <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-200">
-            {["all", "new", "email_collected", "sent", "error", "skipped"].map((s) => (
-              <SelectItem key={s} value={s} className="capitalize">
-                {s}
-              </SelectItem>
+          <SelectContent
+            style={{ background: "#0a0a0a", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <SelectItem value="all" className="text-white/60 text-xs focus:bg-white/5">All statuses</SelectItem>
+            {["new", "email_collected", "sent", "error", "skipped"].map((s) => (
+              <SelectItem key={s} value={s} className="capitalize text-white/60 text-xs focus:bg-white/5">{s}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="flex items-center gap-4 text-[12px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+          <button
+            type="button"
             disabled={page === 0}
             onClick={() => setPage((p) => p - 1)}
-            className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+            className="hover:text-white/60 disabled:opacity-25 transition-colors"
           >
             ← Prev
-          </Button>
-          <span>Page {page + 1}</span>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <span className="tabular-nums text-white/40">Page {page + 1}</span>
+          <button
+            type="button"
             disabled={jobs.length < PAGE_SIZE}
             onClick={() => setPage((p) => p + 1)}
-            className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+            className="hover:text-white/60 disabled:opacity-25 transition-colors"
           >
             Next →
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div
+        className="rounded-2xl overflow-hidden"
+        style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.5)" }}
+      >
         <Table>
-          <TableHeader className="bg-zinc-900/80">
-            <TableRow className="border-zinc-800 hover:bg-transparent">
-              <TableHead className="text-zinc-400">Company</TableHead>
-              <TableHead className="text-zinc-400">Title</TableHead>
-              <TableHead className="text-zinc-400 w-16">Lang</TableHead>
-              <TableHead className="text-zinc-400">Email</TableHead>
-              <TableHead className="text-zinc-400 w-28">Status</TableHead>
-              <TableHead className="text-zinc-400 w-24">Date</TableHead>
+          <TableHeader>
+            <TableRow
+              className="hover:bg-transparent"
+              style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}
+            >
+              {["Company", "Title", "Lang", "Email", "Status", "When"].map((h, i) => (
+                <TableHead
+                  key={h}
+                  className={`text-[10px] font-semibold uppercase tracking-[0.12em] py-3 ${i === 0 ? "pl-6" : ""} ${i === 5 ? "pr-6" : ""}`}
+                  style={{ color: "rgba(255,255,255,0.3)" }}
+                >
+                  {h}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>{renderRows()}</TableBody>
