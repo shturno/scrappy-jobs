@@ -124,7 +124,7 @@ async def run_daily_pipeline() -> dict[str, int]:
 async def scrape_only_pipeline() -> list[Job]:
     """Scrape jobs and save new ones to DB. No emails sent.
 
-    Returns the list of newly saved Job objects.
+    Returns the list of newly saved Job objects (expunged from session).
     """
     keywords, cities = _load_config()
     new_jobs: list[Job] = []
@@ -138,6 +138,7 @@ async def scrape_only_pipeline() -> list[Job]:
                     continue
                 lang = detect_language(data["title"], data.get("description", ""))
                 job = _save_job(session, data, lang)
+                session.expunge(job)
                 new_jobs.append(job)
             except Exception as exc:
                 logger.error("scrape_only error on %s: %s", data.get("url"), exc)
@@ -209,4 +210,3 @@ def preview_job_email(job_id: int) -> tuple[str, str]:
             {**_SENDER_VARS, "job_title": job.title, "company": job.company},
         )
     return subject, body
-
