@@ -41,7 +41,7 @@ export default async function DashboardPage() {
               />
             </svg>
           </div>
-          <span className="text-[15px] font-bold text-white tracking-tight">JobScout</span>
+          <span className="text-[15px] font-bold text-white tracking-tight">Job Scrappy</span>
         </div>
 
         <ConfigPanel />

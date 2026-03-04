@@ -6,7 +6,7 @@ import "./globals.css";
 const grotesk = Space_Grotesk({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: "JobScout",
+  title: "Job Scrappy",
   description: "Job application pipeline — mission control",
 };
 
