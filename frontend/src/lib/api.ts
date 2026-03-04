@@ -12,6 +12,7 @@ export interface Job {
   email: string | null;
   language: string | null;
   status: JobStatus;
+  dismissed: boolean;
   created_at: string;
   sent_at: string | null;
 }
@@ -115,6 +116,10 @@ export function sendSelectedJobs(jobIds: number[]): Promise<SendSummary> {
     method: "POST",
     body: JSON.stringify({ job_ids: jobIds }),
   });
+}
+
+export function dismissJob(id: number): Promise<Job> {
+  return apiFetch<Job>(`/api/jobs/${id}/dismiss`, { method: "PATCH" });
 }
 
 export function updateConfig(data: ConfigUpdate): Promise<AppConfig> {

@@ -1,6 +1,5 @@
-"""Jobs API router — list and detail endpoints."""
+"""Jobs API router — list, dismiss, and detail endpoints."""
 
-import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,6 +21,7 @@ class JobRead(BaseModel):
     email: Optional[str]
     language: Optional[str]
     status: str
+    dismissed: bool
     created_at: str
     sent_at: Optional[str]
 
@@ -37,11 +37,14 @@ class EmailPreview(BaseModel):
 def list_jobs(
     status: Optional[str] = None,
     language: Optional[str] = None,
+    show_all: bool = False,
     limit: int = 20,
     offset: int = 0,
     session: Session = Depends(get_session),
 ) -> list[Job]:
     query = select(Job)
+    if not show_all:
+        query = query.where(Job.dismissed == False)  # noqa: E712
     if status:
         query = query.where(Job.status == status)
     if language:
@@ -57,6 +60,19 @@ def get_job(job_id: int, session: Session = Depends(get_session)) -> Job:
     return job
 
 
+@router.patch("/{job_id}/dismiss", response_model=JobRead)
+def dismiss_job(job_id: int, session: Session = Depends(get_session)) -> Job:
+    """Mark a job as dismissed. Dismissed jobs are hidden from the default listing."""
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.dismissed = True
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    return job
+
+
 @router.get("/{job_id}/preview", response_model=EmailPreview)
 def get_email_preview(job_id: int) -> EmailPreview:
     """Return rendered email subject + body for the given job without sending."""
@@ -65,4 +81,3 @@ def get_email_preview(job_id: int) -> EmailPreview:
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return EmailPreview(subject=subject, body=body)
-

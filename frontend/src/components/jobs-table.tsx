@@ -10,7 +10,7 @@ import {
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Satellite } from "lucide-react";
-import { getJobs, type Job } from "@/lib/api";
+import { getJobs, dismissJob, type Job } from "@/lib/api";
 
 const PAGE_SIZE = 20;
 
@@ -64,6 +64,14 @@ export function JobsTable() {
 
   function changeLang(v: string) { setLang(v); setPage(0); }
 
+  function handleDismiss(job: Job, open: boolean) {
+    if (open) window.open(job.url, "_blank");
+    setJobs((prev) => prev.filter((j) => j.id !== job.id));
+    dismissJob(job.id).catch(() => {
+      setJobs((prev) => [...prev, job]);
+    });
+  }
+
   function renderRows() {
     if (loading) {
       return (
@@ -104,9 +112,8 @@ export function JobsTable() {
     return filtered.map((job) => (
       <TableRow
         key={job.id}
-        className="group cursor-pointer transition-colors duration-100"
+        className="group transition-colors duration-100"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-        onClick={() => window.open(job.url, "_blank")}
         onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "rgba(124,58,237,0.04)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
       >
@@ -147,8 +154,30 @@ export function JobsTable() {
             </span>
           </span>
         </TableCell>
-        <TableCell className="py-4 pr-6 text-[11px] tabular-nums" style={{ color: "rgba(255,255,255,0.25)" }}>
+        <TableCell className="py-4 tabular-nums text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>
           {timeAgo(job.created_at)}
+        </TableCell>
+        <TableCell className="py-4 pr-6">
+          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              type="button"
+              title="Aplicar"
+              onClick={() => handleDismiss(job, true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
+              style={{ background: "rgba(16,185,129,0.15)", color: "#34d399" }}
+            >
+              ↗ Aplicar
+            </button>
+            <button
+              type="button"
+              title="Ignorar"
+              onClick={() => handleDismiss(job, false)}
+              className="flex items-center justify-center w-6 h-6 rounded-md transition-colors"
+              style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.35)" }}
+            >
+              ✕
+            </button>
+          </div>
         </TableCell>
       </TableRow>
     ));
@@ -237,10 +266,10 @@ export function JobsTable() {
               className="hover:bg-transparent"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}
             >
-              {["Company", "Title", "Lang", "Email", "Status", "When"].map((h, i) => (
+              {["Company", "Title", "Lang", "Email", "Status", "When", "Actions"].map((h, i) => (
                 <TableHead
                   key={h}
-                  className={`text-[10px] font-semibold uppercase tracking-[0.12em] py-3 ${i === 0 ? "pl-6" : ""} ${i === 5 ? "pr-6" : ""}`}
+                  className={`text-[10px] font-semibold uppercase tracking-[0.12em] py-3 ${i === 0 ? "pl-6" : ""} ${i === 6 ? "pr-6" : ""}`}
                   style={{ color: "rgba(255,255,255,0.3)" }}
                 >
                   {h}

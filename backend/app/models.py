@@ -13,6 +13,7 @@ class Job(SQLModel, table=True):
     email: Optional[str] = None
     language: Optional[str] = None  # "pt" | "en"
     status: str = Field(default="new")  # "new" | "sent" | "skipped"
+    dismissed: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     sent_at: Optional[datetime] = None
 
