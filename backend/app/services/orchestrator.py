@@ -1,5 +1,6 @@
 """Daily pipeline orchestrator — scrape → detect → save → send."""
 
+import asyncio
 import logging
 import os
 from datetime import UTC, datetime
@@ -8,6 +9,7 @@ from sqlmodel import Session, select
 
 from app.database import engine
 from app.models import EmailLog, Job
+from app.scrapers.google_jobs import fetch_google_jobs
 from app.scrapers.gupy import fetch_gupy_jobs
 from app.services.email_sender import RateLimitExceeded, send_email
 from app.services.lang_detector import detect_language
@@ -29,6 +31,28 @@ def _load_config() -> tuple[list[str], list[str]]:
     keywords = [k.strip() for k in os.getenv("SEARCH_KEYWORDS", "developer").split(",")]
     cities = [c.strip() for c in os.getenv("SEARCH_CITIES", "São Paulo").split(",")]
     return keywords, cities
+
+
+def _load_blocked() -> list[str]:
+    raw = os.getenv("BLOCKED_KEYWORDS", "")
+    return [k.strip().lower() for k in raw.split(",") if k.strip()]
+
+
+def _is_blocked(title: str, blocked: list[str]) -> bool:
+    """Return True if the job title contains any blocked keyword (case-insensitive)."""
+    lower = title.lower()
+    return any(kw in lower for kw in blocked)
+
+
+def _dedup_by_url(jobs: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    unique: list[dict] = []
+    for job in jobs:
+        url = job.get("url", "")
+        if url and url not in seen:
+            seen.add(url)
+            unique.append(job)
+    return unique
 
 
 def _url_exists(session: Session, url: str) -> bool:
@@ -72,9 +96,15 @@ def _log_email(
 async def run_daily_pipeline() -> dict[str, int]:
     """Run the full daily pipeline. Always returns summary even on partial failure."""
     keywords, cities = _load_config()
+    blocked = _load_blocked()
     summary: dict[str, int] = {"scraped": 0, "emails_found": 0, "sent": 0, "errors": 0}
 
-    raw_jobs = await fetch_gupy_jobs(keywords, cities)
+    gupy_jobs, google_jobs = await asyncio.gather(
+        fetch_gupy_jobs(keywords, cities),
+        fetch_google_jobs(keywords, cities),
+    )
+    raw_jobs = _dedup_by_url(gupy_jobs + google_jobs)
+    raw_jobs = [j for j in raw_jobs if not _is_blocked(j.get("title", ""), blocked)]
     summary["scraped"] = len(raw_jobs)
 
     rate_limited = False
@@ -127,9 +157,15 @@ async def scrape_only_pipeline() -> list[Job]:
     Returns the list of newly saved Job objects (expunged from session).
     """
     keywords, cities = _load_config()
+    blocked = _load_blocked()
     new_jobs: list[Job] = []
 
-    raw_jobs = await fetch_gupy_jobs(keywords, cities)
+    gupy_jobs, google_jobs = await asyncio.gather(
+        fetch_gupy_jobs(keywords, cities),
+        fetch_google_jobs(keywords, cities),
+    )
+    raw_jobs = _dedup_by_url(gupy_jobs + google_jobs)
+    raw_jobs = [j for j in raw_jobs if not _is_blocked(j.get("title", ""), blocked)]
 
     with Session(engine) as session:
         for data in raw_jobs:
