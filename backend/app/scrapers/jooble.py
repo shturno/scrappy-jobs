@@ -39,16 +39,16 @@ def _normalize(raw: dict) -> Optional[dict]:
     }
 
 
-async def _fetch_for_pair(
-    client: httpx.AsyncClient, api_key: str, keyword: str, city: str
+async def _fetch_for_keyword(
+    client: httpx.AsyncClient, api_key: str, keyword: str
 ) -> list[dict]:
     url = f"{_JOOBLE_BASE}/{api_key}"
-    payload = {"keywords": keyword, "location": city, "resultsOnPage": 20}
+    payload = {"keywords": keyword, "country": "br", "resultsOnPage": 20}
     try:
         await asyncio.sleep(1.5)
         r = await client.post(url, json=payload)
         if r.status_code == 429:
-            logger.warning("Jooble 429 for %s/%s — skipping", keyword, city)
+            logger.warning("Jooble 429 for %s — skipping", keyword)
             return []
         r.raise_for_status()
         jobs_raw = r.json().get("jobs", [])
@@ -59,14 +59,15 @@ async def _fetch_for_pair(
                 results.append(job)
         return results
     except Exception as exc:
-        logger.warning("Jooble error [%s/%s]: %s", keyword, city, exc)
+        logger.warning("Jooble error [%s]: %s", keyword, exc)
         return []
 
 
-async def fetch_jooble_jobs(keywords: list[str], cities: list[str]) -> list[dict]:
-    """Fetch jobs from Jooble for every keyword × city pair.
+async def fetch_jooble_jobs(keywords: list[str], _cities: list[str]) -> list[dict]:
+    """Fetch jobs from Jooble for every keyword, scoped to Brazil (country=br).
 
-    Returns normalized job dicts (same schema as fetch_gupy_jobs).
+    The `cities` parameter is accepted for API consistency but not used —
+    Jooble does not support Brazilian city names as location strings.
     Returns [] immediately if JOOBLE_API_KEY is not set.
     """
     api_key = os.getenv("JOOBLE_API_KEY", "")
@@ -76,9 +77,8 @@ async def fetch_jooble_jobs(keywords: list[str], cities: list[str]) -> list[dict
 
     async with httpx.AsyncClient(headers=_HEADERS, timeout=15) as client:
         tasks = [
-            _fetch_for_pair(client, api_key, kw, city)
+            _fetch_for_keyword(client, api_key, kw)
             for kw in keywords
-            for city in cities
         ]
         results = await asyncio.gather(*tasks)
 
