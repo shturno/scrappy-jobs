@@ -44,6 +44,27 @@ export interface PipelineSummary {
   errors: number;
 }
 
+export interface ScrapeResult {
+  id: number;
+  title: string;
+  company: string;
+  url: string;
+  email: string | null;
+  language: string | null;
+  status: string;
+}
+
+export interface EmailPreview {
+  subject: string;
+  body: string;
+}
+
+export interface SendSummary {
+  sent: number;
+  skipped: number;
+  errors: number;
+}
+
 // ------- Helpers -------
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -79,6 +100,21 @@ export function getConfig(): Promise<AppConfig> {
 
 export function runPipeline(): Promise<PipelineSummary> {
   return apiFetch<PipelineSummary>("/api/pipeline/run", { method: "POST" });
+}
+
+export function scrapePipeline(): Promise<ScrapeResult[]> {
+  return apiFetch<ScrapeResult[]>("/api/pipeline/scrape", { method: "POST" });
+}
+
+export function getEmailPreview(jobId: number): Promise<EmailPreview> {
+  return apiFetch<EmailPreview>(`/api/jobs/${jobId}/preview`);
+}
+
+export function sendSelectedJobs(jobIds: number[]): Promise<SendSummary> {
+  return apiFetch<SendSummary>("/api/pipeline/send", {
+    method: "POST",
+    body: JSON.stringify({ job_ids: jobIds }),
+  });
 }
 
 export function updateConfig(data: ConfigUpdate): Promise<AppConfig> {

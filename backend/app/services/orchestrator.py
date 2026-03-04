@@ -119,3 +119,94 @@ async def run_daily_pipeline() -> dict[str, int]:
                 summary["errors"] += 1
 
     return summary
+
+
+async def scrape_only_pipeline() -> list[Job]:
+    """Scrape jobs and save new ones to DB. No emails sent.
+
+    Returns the list of newly saved Job objects.
+    """
+    keywords, cities = _load_config()
+    new_jobs: list[Job] = []
+
+    raw_jobs = await fetch_gupy_jobs(keywords, cities)
+
+    with Session(engine) as session:
+        for data in raw_jobs:
+            try:
+                if _url_exists(session, data["url"]):
+                    continue
+                lang = detect_language(data["title"], data.get("description", ""))
+                job = _save_job(session, data, lang)
+                new_jobs.append(job)
+            except Exception as exc:
+                logger.error("scrape_only error on %s: %s", data.get("url"), exc)
+
+    return new_jobs
+
+
+def send_selected_jobs(job_ids: list[int]) -> dict[str, int]:
+    """Send emails only for the given job IDs. Respects daily rate limit.
+
+    Returns summary dict with sent/skipped/errors counts.
+    """
+    summary: dict[str, int] = {"sent": 0, "skipped": 0, "errors": 0}
+
+    with Session(engine) as session:
+        for job_id in job_ids:
+            job = session.get(Job, job_id)
+            if not job:
+                summary["errors"] += 1
+                continue
+
+            if job.status == "sent":
+                summary["skipped"] += 1
+                continue
+
+            if not job.email:
+                summary["skipped"] += 1
+                continue
+
+            lang = job.language or "pt"
+            try:
+                subject, body = render_template(
+                    lang,  # type: ignore[arg-type]
+                    {**_SENDER_VARS, "job_title": job.title, "company": job.company},
+                )
+                sent = send_email(job.email, subject, body)
+                if sent:
+                    job.status = "sent"
+                    job.sent_at = datetime.now(UTC)
+                    session.add(job)
+                    _log_email(session, job, subject, lang)
+                    summary["sent"] += 1
+                else:
+                    _log_email(session, job, subject, lang, error="send_failed")
+                    summary["errors"] += 1
+            except RateLimitExceeded:
+                logger.warning("Rate limit reached during send_selected.")
+                summary["errors"] += 1
+                break
+            except Exception as exc:
+                logger.error("send_selected error on job %s: %s", job_id, exc)
+                summary["errors"] += 1
+
+    return summary
+
+
+def preview_job_email(job_id: int) -> tuple[str, str]:
+    """Return (subject, body) for a job without sending.
+
+    Raises ValueError if job not found.
+    """
+    with Session(engine) as session:
+        job = session.get(Job, job_id)
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
+        lang = job.language or "pt"
+        subject, body = render_template(
+            lang,  # type: ignore[arg-type]
+            {**_SENDER_VARS, "job_title": job.title, "company": job.company},
+        )
+    return subject, body
+

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Rocket, Loader2, Send, Star, AlertTriangle } from "lucide-react";
-import { getStats, runPipeline, type EmailStats, type PipelineSummary } from "@/lib/api";
+import { getStats, scrapePipeline, type EmailStats, type ScrapeResult } from "@/lib/api";
+import { ScrapeResults } from "@/components/scrape-results";
 
 interface StatsBarProps {
   readonly initialStats: EmailStats;
@@ -38,22 +39,26 @@ const CARDS = [
 
 export function StatsBar({ initialStats }: StatsBarProps) {
   const [stats, setStats] = useState<EmailStats>(initialStats);
-  const [running, setRunning] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<ScrapeResult[] | null>(null);
 
-  async function handleRun() {
-    setRunning(true);
+  async function handleScrape() {
+    setLoading(true);
+    setResults(null);
     try {
-      const summary: PipelineSummary = await runPipeline();
+      const jobs = await scrapePipeline();
       const fresh = await getStats();
       setStats(fresh);
-      toast.success("Mission complete", {
-        description: `Scraped ${summary.scraped} · Found ${summary.emails_found} · Sent ${summary.sent} · Errors ${summary.errors}`,
-        duration: 7000,
-      });
+      setResults(jobs);
+      if (jobs.length === 0) {
+        toast.info("No new jobs found", { description: "All jobs are already in the database." });
+      } else {
+        toast.success(`${jobs.length} new job${jobs.length === 1 ? "" : "s"} scraped`);
+      }
     } catch {
-      toast.error("Mission failed", { description: "Check the backend logs." });
+      toast.error("Scrape failed", { description: "Check the backend logs." });
     } finally {
-      setRunning(false);
+      setLoading(false);
     }
   }
 
@@ -87,25 +92,25 @@ export function StatsBar({ initialStats }: StatsBarProps) {
 
         <button
           type="button"
-          onClick={handleRun}
-          disabled={running}
+          onClick={handleScrape}
+          disabled={loading}
           className="flex items-center gap-2 px-4 h-9 rounded-lg font-semibold text-[13px] text-white transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
-            background: running ? "rgba(124,58,237,0.5)" : "rgba(124,58,237,0.9)",
+            background: loading ? "rgba(124,58,237,0.5)" : "rgba(124,58,237,0.9)",
             border: "1px solid rgba(124,58,237,0.6)",
-            boxShadow: running ? "none" : "0 0 16px rgba(124,58,237,0.35), inset 0 1px 0 rgba(255,255,255,0.1)",
+            boxShadow: loading ? "none" : "0 0 16px rgba(124,58,237,0.35), inset 0 1px 0 rgba(255,255,255,0.1)",
           }}
           onMouseEnter={(e) => {
-            if (!running) (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 24px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.12)";
+            if (!loading) (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 24px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.12)";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 16px rgba(124,58,237,0.35), inset 0 1px 0 rgba(255,255,255,0.1)";
           }}
         >
-          {running
+          {loading
             ? <Loader2 size={14} className="animate-spin" />
             : <Rocket size={14} />}
-          {running ? "Launching…" : "Launch pipeline"}
+          {loading ? "Scanning…" : "Scrape jobs"}
         </button>
       </div>
 
@@ -173,6 +178,16 @@ export function StatsBar({ initialStats }: StatsBarProps) {
           );
         })}
       </div>
+
+      {/* Scrape results — shown inline after scraping */}
+      {results !== null && (
+        <div className="mt-8 relative">
+          <ScrapeResults
+            results={results}
+            onDismiss={() => setResults(null)}
+          />
+        </div>
+      )}
     </section>
   );
 }

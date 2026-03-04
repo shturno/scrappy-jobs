@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from app.database import get_session
 from app.models import Job
+from app.services.orchestrator import preview_job_email
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -25,6 +26,11 @@ class JobRead(BaseModel):
     sent_at: Optional[str]
 
     model_config = {"from_attributes": True}
+
+
+class EmailPreview(BaseModel):
+    subject: str
+    body: str
 
 
 @router.get("", response_model=list[JobRead])
@@ -49,3 +55,14 @@ def get_job(job_id: int, session: Session = Depends(get_session)) -> Job:
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.get("/{job_id}/preview", response_model=EmailPreview)
+def get_email_preview(job_id: int) -> EmailPreview:
+    """Return rendered email subject + body for the given job without sending."""
+    try:
+        subject, body = preview_job_email(job_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return EmailPreview(subject=subject, body=body)
+
