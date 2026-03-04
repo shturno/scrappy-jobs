@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import re
+from datetime import UTC, datetime
 from typing import Optional
 
 import httpx
@@ -21,9 +22,24 @@ def _extract_email(text: Optional[str]) -> Optional[str]:
     return match.group(0) if match else None
 
 
+def _is_expired(deadline: str | None) -> bool:
+    """Return True if the deadline string represents a past date."""
+    if not deadline:
+        return False
+    try:
+        dt = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
+        return dt < datetime.now(UTC)
+    except ValueError:
+        return False
+
+
 def _normalize(raw: dict) -> Optional[dict]:
     url = raw.get("jobUrl")
     if not url:
+        return None
+    if raw.get("isActive") is False:
+        return None
+    if _is_expired(raw.get("applicationDeadline")):
         return None
     return {
         "title": raw.get("name", ""),
@@ -37,7 +53,7 @@ def _normalize(raw: dict) -> Optional[dict]:
 async def _fetch_for_pair(
     client: httpx.AsyncClient, keyword: str, city: str
 ) -> list[dict]:
-    params = {"jobName": keyword, "city": city, "limit": 20}
+    params = {"jobName": keyword, "city": city, "limit": 20, "isActive": "true"}
     try:
         await asyncio.sleep(1.5)
         r = await client.get(_GUPY_URL, params=params)
