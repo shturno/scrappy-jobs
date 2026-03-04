@@ -182,12 +182,12 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
 
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ border: "1px solid rgba(255,255,255,0.09)", background: "rgba(0,0,0,0.5)" }}
+        style={{ border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.04)" }}
       >
         {/* Toolbar */}
         <div
           className="flex items-center justify-between px-5 py-3"
-          style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}
         >
           <div className="flex items-center gap-3">
             <input
@@ -197,10 +197,10 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
               onChange={toggleAll}
               className="w-4 h-4 accent-violet-500 cursor-pointer"
             />
-            <label htmlFor="select-all" className="text-xs cursor-pointer" style={{ color: "rgba(255,255,255,0.5)" }}>
+            <label htmlFor="select-all" className="text-xs font-medium cursor-pointer" style={{ color: "rgba(255,255,255,0.75)" }}>
               {results.length} new {results.length === 1 ? "job" : "jobs"} scraped
               {withEmail.length < results.length && (
-                <span style={{ color: "rgba(255,255,255,0.3)" }}> · {withEmail.length} with email</span>
+                <span style={{ color: "rgba(255,255,255,0.5)" }}> · {withEmail.length} with email</span>
               )}
             </label>
           </div>
@@ -210,7 +210,7 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
               type="button"
               onClick={onDismiss}
               className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-              style={{ color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}
+              style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.15)" }}
             >
               Dismiss
             </button>
@@ -227,14 +227,13 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
         </div>
 
         {/* Job list */}
-        <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+        <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
           {results.map((job) => {
             const hasEmail = !!job.email;
             return (
               <div
                 key={job.id}
-                className="flex items-center gap-4 px-5 py-4"
-                style={{ opacity: hasEmail ? 1 : 0.5 }}
+                className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.03] transition-colors"
               >
                 <input
                   type="checkbox"
@@ -254,12 +253,12 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
                       </span>
                     )}
                     {!hasEmail && (
-                      <span className="text-[10px] text-white/25">no email</span>
+                      <span className="text-[10px] font-semibold text-amber-400/70 bg-amber-400/10 px-1.5 py-0.5 rounded">no email</span>
                     )}
                   </div>
-                  <p className="text-xs mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{job.title}</p>
+                  <p className="text-sm mt-0.5 truncate font-medium" style={{ color: "rgba(255,255,255,0.75)" }}>{job.title}</p>
                   {job.email && (
-                    <p className="text-[11px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.25)" }}>{job.email}</p>
+                    <p className="text-[11px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.5)" }}>{job.email}</p>
                   )}
                 </div>
 
@@ -269,7 +268,7 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
                       type="button"
                       onClick={() => setPreviewJob(job)}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
-                      style={{ color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
+                      style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.04)" }}
                       title="Preview email"
                     >
                       <Eye size={11} /> Preview
@@ -280,7 +279,7 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
-                    style={{ color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.04)" }}
                     title="Open job"
                   >
                     <ExternalLink size={11} />
