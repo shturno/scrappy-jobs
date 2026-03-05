@@ -14,6 +14,7 @@ from app.scrapers.gupy import fetch_gupy_jobs
 from app.scrapers.jooble import fetch_jooble_jobs
 from app.scrapers.remoteok import fetch_remoteok_jobs
 from app.scrapers.adzuna import fetch_adzuna_jobs
+from app.scrapers.arbeitnow import fetch_arbeitnow_jobs
 from app.services.email_sender import RateLimitExceeded, send_email
 from app.services.lang_detector import detect_language
 from app.services.template_engine import render_template
@@ -102,14 +103,19 @@ async def run_daily_pipeline() -> dict[str, int]:
     blocked = _load_blocked()
     summary: dict[str, int] = {"scraped": 0, "emails_found": 0, "sent": 0, "errors": 0}
 
-    gupy_jobs, google_jobs, jooble_jobs, remoteok_jobs, adzuna_jobs = await asyncio.gather(
-        fetch_gupy_jobs(keywords, cities),
-        fetch_google_jobs(keywords, cities),
-        fetch_jooble_jobs(keywords, cities),
-        fetch_remoteok_jobs(keywords, cities),
-        fetch_adzuna_jobs(keywords, cities),
+    gupy_jobs, google_jobs, jooble_jobs, remoteok_jobs, adzuna_jobs, arbeitnow_jobs = (
+        await asyncio.gather(
+            fetch_gupy_jobs(keywords, cities),
+            fetch_google_jobs(keywords, cities),
+            fetch_jooble_jobs(keywords, cities),
+            fetch_remoteok_jobs(keywords, cities),
+            fetch_adzuna_jobs(keywords, cities),
+            fetch_arbeitnow_jobs(keywords, cities),
+        )
     )
-    raw_jobs = _dedup_by_url(gupy_jobs + google_jobs + jooble_jobs + remoteok_jobs + adzuna_jobs)
+    raw_jobs = _dedup_by_url(
+        gupy_jobs + google_jobs + jooble_jobs + remoteok_jobs + adzuna_jobs + arbeitnow_jobs
+    )
     raw_jobs = [j for j in raw_jobs if not _is_blocked(j.get("title", ""), blocked)]
     summary["scraped"] = len(raw_jobs)
 
@@ -166,14 +172,19 @@ async def scrape_only_pipeline() -> list[Job]:
     blocked = _load_blocked()
     new_jobs: list[Job] = []
 
-    gupy_jobs, google_jobs, jooble_jobs, remoteok_jobs, adzuna_jobs = await asyncio.gather(
-        fetch_gupy_jobs(keywords, cities),
-        fetch_google_jobs(keywords, cities),
-        fetch_jooble_jobs(keywords, cities),
-        fetch_remoteok_jobs(keywords, cities),
-        fetch_adzuna_jobs(keywords, cities),
+    gupy_jobs, google_jobs, jooble_jobs, remoteok_jobs, adzuna_jobs, arbeitnow_jobs = (
+        await asyncio.gather(
+            fetch_gupy_jobs(keywords, cities),
+            fetch_google_jobs(keywords, cities),
+            fetch_jooble_jobs(keywords, cities),
+            fetch_remoteok_jobs(keywords, cities),
+            fetch_adzuna_jobs(keywords, cities),
+            fetch_arbeitnow_jobs(keywords, cities),
+        )
     )
-    raw_jobs = _dedup_by_url(gupy_jobs + google_jobs + jooble_jobs + remoteok_jobs + adzuna_jobs)
+    raw_jobs = _dedup_by_url(
+        gupy_jobs + google_jobs + jooble_jobs + remoteok_jobs + adzuna_jobs + arbeitnow_jobs
+    )
     raw_jobs = [j for j in raw_jobs if not _is_blocked(j.get("title", ""), blocked)]
 
     with Session(engine) as session:
