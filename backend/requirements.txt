@@ -10,3 +10,4 @@ google-auth-oauthlib>=1.2.0
 google-api-python-client>=2.127.0
 pytest>=8.1.0
 pytest-asyncio>=0.23.0
+slowapi>=0.1.9

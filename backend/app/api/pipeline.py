@@ -1,9 +1,10 @@
 """Pipeline API — run/scrape/send endpoints."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
 from app.dependencies.auth import require_api_key
+from app.dependencies.rate_limit import limiter
 from app.services.orchestrator import (
     run_daily_pipeline,
     scrape_only_pipeline,
@@ -45,8 +46,8 @@ class SendSummary(BaseModel):
 
 
 @router.post("/run", response_model=PipelineSummary)
-async def run_pipeline() -> PipelineSummary:
-    """Scrape + send in one shot (existing behaviour — do not remove)."""
+@limiter.limit("5/minute")
+async def run_pipeline(request: Request) -> PipelineSummary:
     result = await run_daily_pipeline()
     return PipelineSummary(
         scraped=result.get("scraped", 0),
@@ -57,8 +58,8 @@ async def run_pipeline() -> PipelineSummary:
 
 
 @router.post("/scrape", response_model=list[ScrapeResult])
-async def scrape_only() -> list[ScrapeResult]:
-    """Scrape jobs and save to DB. Returns list of new jobs. Does NOT send emails."""
+@limiter.limit("5/minute")
+async def scrape_only(request: Request) -> list[ScrapeResult]:
     jobs = await scrape_only_pipeline()
     return [
         ScrapeResult(
@@ -75,8 +76,8 @@ async def scrape_only() -> list[ScrapeResult]:
 
 
 @router.post("/send", response_model=SendSummary)
-def send_selected(body: SendRequest) -> SendSummary:
-    """Send emails only for the specified job IDs."""
+@limiter.limit("5/minute")
+def send_selected(request: Request, body: SendRequest) -> SendSummary:
     result = send_selected_jobs(body.job_ids)
     return SendSummary(
         sent=result.get("sent", 0),
