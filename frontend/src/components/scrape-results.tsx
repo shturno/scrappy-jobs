@@ -119,8 +119,10 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [sending, setSending] = useState(false);
   const [previewJob, setPreviewJob] = useState<ScrapeResult | null>(null);
+  const [lang, setLang] = useState("all");
 
-  const withEmail = results.filter((r) => r.email);
+  const filteredResults = lang === "all" ? results : results.filter((r) => r.language === lang);
+  const withEmail = filteredResults.filter((r) => r.email);
   const all = withEmail.map((r) => r.id);
 
   function toggle(id: number) {
@@ -189,20 +191,45 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
           className="flex items-center justify-between px-5 py-3"
           style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}
         >
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="select-all"
-              checked={selected.size === all.length && all.length > 0}
-              onChange={toggleAll}
-              className="w-4 h-4 accent-violet-500 cursor-pointer"
-            />
-            <label htmlFor="select-all" className="text-xs font-medium cursor-pointer" style={{ color: "rgba(255,255,255,0.75)" }}>
-              {results.length} new {results.length === 1 ? "job" : "jobs"} scraped
-              {withEmail.length < results.length && (
-                <span style={{ color: "rgba(255,255,255,0.5)" }}> · {withEmail.length} with email</span>
-              )}
-            </label>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="select-all"
+                checked={selected.size === all.length && all.length > 0}
+                onChange={toggleAll}
+                className="w-4 h-4 accent-violet-500 cursor-pointer"
+              />
+              <label htmlFor="select-all" className="text-xs font-medium cursor-pointer" style={{ color: "rgba(255,255,255,0.75)" }}>
+                {filteredResults.length} new {filteredResults.length === 1 ? "job" : "jobs"}
+                {withEmail.length < filteredResults.length && (
+                  <span style={{ color: "rgba(255,255,255,0.5)" }}> · {withEmail.length} with email</span>
+                )}
+              </label>
+            </div>
+
+            {/* Language toggle */}
+            <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
+              {(["all", "pt", "en"] as const).map((l, i) => {
+                const labels: Record<string, string> = { all: "Todos", pt: "Português", en: "English" };
+                const active = lang === l;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setLang(l)}
+                    className="h-7 px-2.5 text-[11px] font-medium transition-colors"
+                    style={{
+                      background: active ? "rgba(124,58,237,0.25)" : "rgba(255,255,255,0.03)",
+                      color: active ? "#c4b5fd" : "rgba(255,255,255,0.4)",
+                      borderRight: i < 2 ? "1px solid rgba(255,255,255,0.08)" : undefined,
+                    }}
+                  >
+                    {labels[l]}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -228,7 +255,7 @@ export function ScrapeResults({ results, onDismiss }: ScrapeResultsProps) {
 
         {/* Job list */}
         <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-          {results.map((job) => {
+          {filteredResults.map((job) => {
             const hasEmail = !!job.email;
             return (
               <div
