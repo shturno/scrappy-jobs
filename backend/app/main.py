@@ -13,7 +13,7 @@ app = FastAPI(title="JobScout API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL")],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
