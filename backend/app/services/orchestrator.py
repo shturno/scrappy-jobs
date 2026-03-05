@@ -1,5 +1,3 @@
-"""Daily pipeline orchestrator — scrape → detect → save → send."""
-
 import asyncio
 import logging
 import os
@@ -99,7 +97,6 @@ def _log_email(
 
 
 async def run_daily_pipeline() -> dict[str, int]:
-    """Run the full daily pipeline. Always returns summary even on partial failure."""
     keywords, cities = _load_config()
     blocked = _load_blocked()
     summary: dict[str, int] = {"scraped": 0, "emails_found": 0, "sent": 0, "errors": 0}
@@ -169,10 +166,6 @@ async def run_daily_pipeline() -> dict[str, int]:
 
 
 async def scrape_only_pipeline() -> list[Job]:
-    """Scrape jobs and save new ones to DB. No emails sent.
-
-    Returns the list of newly saved Job objects (expunged from session).
-    """
     keywords, cities = _load_config()
     blocked = _load_blocked()
     new_jobs: list[Job] = []
