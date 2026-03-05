@@ -28,7 +28,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL")],
+    allow_origins=[os.getenv("FRONTEND_URL", "").rstrip("/")],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
