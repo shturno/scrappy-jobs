@@ -85,13 +85,13 @@ export function getStats(): Promise<EmailStats> {
 
 export function getJobs(params: {
   status?: string;
+  skip?: number;
   limit?: number;
-  offset?: number;
 }): Promise<Job[]> {
   const q = new URLSearchParams();
   if (params.status && params.status !== "all") q.set("status", params.status);
   if (params.limit != null) q.set("limit", String(params.limit));
-  if (params.offset != null) q.set("offset", String(params.offset));
+  if (params.skip != null) q.set("skip", String(params.skip));
   return apiFetch<Job[]>(`/api/jobs?${q.toString()}`);
 }
 

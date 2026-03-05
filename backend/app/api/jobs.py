@@ -38,8 +38,8 @@ def list_jobs(
     status: Optional[str] = None,
     language: Optional[str] = None,
     show_all: bool = False,
-    limit: int = 20,
-    offset: int = 0,
+    skip: int = 0,
+    limit: int = 50,
     session: Session = Depends(get_session),
 ) -> list[Job]:
     query = select(Job)
@@ -49,7 +49,7 @@ def list_jobs(
         query = query.where(Job.status == status)
     if language:
         query = query.where(Job.language == language)
-    return list(session.exec(query.offset(offset).limit(limit)).all())
+    return list(session.exec(query.offset(skip).limit(limit)).all())
 
 
 @router.get("/{job_id}", response_model=JobRead)

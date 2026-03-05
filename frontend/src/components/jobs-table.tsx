@@ -56,7 +56,7 @@ export function JobsTable() {
 
   useEffect(() => {
     setLoading(true);
-    getJobs({ status, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+    getJobs({ status, limit: PAGE_SIZE, skip: page * PAGE_SIZE })
       .then(setJobs)
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
