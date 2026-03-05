@@ -18,7 +18,8 @@ jobs:
           RESPONSE=$(curl --silent --show-error --fail \
             --max-time 270 \
             -X POST "${{ secrets.BACKEND_URL }}/api/pipeline/run" \
-            -H "Content-Type: application/json")
+            -H "Content-Type: application/json" \
+            -H "X-API-Key: ${{ secrets.API_KEY }}")
           echo "response=$RESPONSE" >> "$GITHUB_OUTPUT"
           echo "Pipeline response: $RESPONSE"
 
