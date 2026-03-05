@@ -7,9 +7,14 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
 from app.database import get_session
+from app.dependencies.auth import require_api_key
 from app.models import EmailLog
 
-router = APIRouter(prefix="/api/emails", tags=["emails"])
+router = APIRouter(
+    prefix="/api/emails",
+    tags=["emails"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 class EmailLogRead(BaseModel):

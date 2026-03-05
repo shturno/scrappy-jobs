@@ -1,15 +1,20 @@
 """Pipeline API — run/scrape/send endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.dependencies.auth import require_api_key
 from app.services.orchestrator import (
     run_daily_pipeline,
     scrape_only_pipeline,
     send_selected_jobs,
 )
 
-router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
+router = APIRouter(
+    prefix="/api/pipeline",
+    tags=["pipeline"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 class PipelineSummary(BaseModel):
