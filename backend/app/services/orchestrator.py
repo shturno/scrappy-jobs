@@ -104,10 +104,7 @@ async def run_daily_pipeline() -> dict[str, int]:
     blocked = _load_blocked()
     summary: dict[str, int] = {"scraped": 0, "emails_found": 0, "sent": 0, "errors": 0}
 
-    (
-        gupy_jobs, google_jobs, jooble_jobs,
-        remoteok_jobs, adzuna_jobs, arbeitnow_jobs, programathor_jobs
-    ) = await asyncio.gather(
+    results = await asyncio.gather(
         fetch_gupy_jobs(keywords, cities),
         fetch_google_jobs(keywords, cities),
         fetch_jooble_jobs(keywords, cities),
@@ -115,11 +112,15 @@ async def run_daily_pipeline() -> dict[str, int]:
         fetch_adzuna_jobs(keywords, cities),
         fetch_arbeitnow_jobs(keywords, cities),
         fetch_programathor_jobs(keywords, cities),
+        return_exceptions=True,
     )
-    raw_jobs = _dedup_by_url(
-        gupy_jobs + google_jobs + jooble_jobs
-        + remoteok_jobs + adzuna_jobs + arbeitnow_jobs + programathor_jobs
-    )
+
+    valid_lists = [r for r in results if not isinstance(r, Exception)]
+    combined = []
+    for lst in valid_lists:
+        combined.extend(lst)
+
+    raw_jobs = _dedup_by_url(combined)
     raw_jobs = [j for j in raw_jobs if not _is_blocked(j.get("title", ""), blocked)]
     summary["scraped"] = len(raw_jobs)
 
@@ -176,10 +177,7 @@ async def scrape_only_pipeline() -> list[Job]:
     blocked = _load_blocked()
     new_jobs: list[Job] = []
 
-    (
-        gupy_jobs, google_jobs, jooble_jobs,
-        remoteok_jobs, adzuna_jobs, arbeitnow_jobs, programathor_jobs
-    ) = await asyncio.gather(
+    results = await asyncio.gather(
         fetch_gupy_jobs(keywords, cities),
         fetch_google_jobs(keywords, cities),
         fetch_jooble_jobs(keywords, cities),
@@ -187,11 +185,15 @@ async def scrape_only_pipeline() -> list[Job]:
         fetch_adzuna_jobs(keywords, cities),
         fetch_arbeitnow_jobs(keywords, cities),
         fetch_programathor_jobs(keywords, cities),
+        return_exceptions=True,
     )
-    raw_jobs = _dedup_by_url(
-        gupy_jobs + google_jobs + jooble_jobs
-        + remoteok_jobs + adzuna_jobs + arbeitnow_jobs + programathor_jobs
-    )
+
+    valid_lists = [r for r in results if not isinstance(r, Exception)]
+    combined = []
+    for lst in valid_lists:
+        combined.extend(lst)
+
+    raw_jobs = _dedup_by_url(combined)
     raw_jobs = [j for j in raw_jobs if not _is_blocked(j.get("title", ""), blocked)]
 
     with Session(engine) as session:
