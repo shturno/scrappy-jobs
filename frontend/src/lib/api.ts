@@ -70,7 +70,10 @@ export interface SendSummary {
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": process.env.NEXT_PUBLIC_API_KEY ?? "",
+    },
     ...init,
   });
   if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
