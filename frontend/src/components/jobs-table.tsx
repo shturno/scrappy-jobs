@@ -211,10 +211,9 @@ export function JobsTable() {
 
           {/* Language toggle */}
           <div className="flex items-center rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
-            {(["all", "pt", "en"] as const).map((l) => {
+            {(["all", "pt", "en"] as const).map((l, i) => {
               const labels: Record<string, string> = { all: "Todos", pt: "Português", en: "English" };
               const active = lang === l;
-              const borderRight = l === "en" ? undefined : "1px solid rgba(255,255,255,0.08)";
               return (
                 <button
                   key={l}
@@ -224,7 +223,7 @@ export function JobsTable() {
                   style={{
                     background: active ? "rgba(124,58,237,0.25)" : "rgba(255,255,255,0.03)",
                     color: active ? "#c4b5fd" : "rgba(255,255,255,0.4)",
-                    borderRight,
+                    borderRight: i < 2 ? "1px solid rgba(255,255,255,0.08)" : undefined,
                   }}
                 >
                   {labels[l]}
