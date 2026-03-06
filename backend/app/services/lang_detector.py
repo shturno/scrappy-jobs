@@ -7,10 +7,42 @@ from langdetect import detect, LangDetectException
 
 logger = logging.getLogger(__name__)
 
-_PT_KEYWORDS = {"vaga", "empresa", "requisitos", "experiência", "salário"}
-_EN_KEYWORDS = {"job", "company", "requirements", "experience", "salary"}
-
 Lang = Literal["pt", "en"]
+
+_PT_TITLE_SIGNALS = {
+    "desenvolvedor", "desenvolvedora", "estágio", "estagio", "estagiário",
+    "estagiaria", "júnior", "junior", "analista", "engenheiro", "engenheira",
+    "programador", "programadora", "trainee", "técnico", "tecnico",
+}
+
+_EN_TITLE_SIGNALS = {
+    "developer", "engineer", "intern", "internship", "software",
+    "frontend", "backend", "fullstack", "full-stack", "programmer",
+    "architect", "lead", "manager",
+}
+
+_PT_KEYWORDS = {
+    "vaga", "empresa", "requisitos", "experiência", "salário", "benefícios",
+    "contratação", "oportunidade", "candidatura", "conhecimentos",
+    "habilidades", "formação", "graduação", "superior",
+}
+
+_EN_KEYWORDS = {
+    "job", "company", "requirements", "experience", "salary", "benefits",
+    "hiring", "opportunity", "application", "skills", "knowledge",
+    "degree", "bachelor", "position", "role",
+}
+
+
+def _title_signal(title: str) -> Lang | None:
+    """Return language if title contains an unambiguous signal word."""
+    lower = title.lower()
+    words = set(lower.split())
+    if words & _PT_TITLE_SIGNALS:
+        return "pt"
+    if words & _EN_TITLE_SIGNALS:
+        return "en"
+    return None
 
 
 def _keyword_fallback(text: str) -> Lang:
@@ -23,11 +55,15 @@ def _keyword_fallback(text: str) -> Lang:
 
 
 def detect_language(title: str, description: str) -> Lang:
-    """Detect job language from title + first 500 chars of description.
+    """Detect job language from title + first 800 chars of description.
 
-    Primary: langdetect. Fallback: keyword heuristic. Default: 'pt'.
+    Priority: title signal words → langdetect → keyword heuristic → 'pt'.
     """
-    text = f"{title} {description[:500]}".strip()
+    signal = _title_signal(title)
+    if signal:
+        return signal
+
+    text = f"{title} {description[:800]}".strip()
     try:
         lang = detect(text)
         if lang in ("pt", "en"):

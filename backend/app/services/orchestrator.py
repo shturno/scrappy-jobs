@@ -16,6 +16,7 @@ from app.scrapers.adzuna import fetch_adzuna_jobs
 from app.scrapers.arbeitnow import fetch_arbeitnow_jobs
 from app.scrapers.programathor import fetch_programathor_jobs
 from app.services.email_sender import RateLimitExceeded, send_email
+from app.services.email_enricher import enrich_email
 from app.services.lang_detector import detect_language
 from app.services.template_engine import render_template
 
@@ -135,6 +136,13 @@ async def run_daily_pipeline() -> dict[str, int]:
                 job = _save_job(session, data, lang)
 
                 if not job.email:
+                    enriched = await enrich_email(job.url)
+                    if enriched:
+                        job.email = enriched
+                        session.add(job)
+                        session.commit()
+
+                if not job.email:
                     continue
 
                 summary["emails_found"] += 1
@@ -199,6 +207,14 @@ async def scrape_only_pipeline() -> list[Job]:
                     continue
                 lang = detect_language(data["title"], data.get("description", ""))
                 job = _save_job(session, data, lang)
+
+                if not job.email:
+                    enriched = await enrich_email(job.url)
+                    if enriched:
+                        job.email = enriched
+                        session.add(job)
+                        session.commit()
+
                 session.expunge(job)
                 new_jobs.append(job)
             except Exception as exc:

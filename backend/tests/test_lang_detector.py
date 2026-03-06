@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from langdetect import LangDetectException
 
-from app.services.lang_detector import detect_language, _keyword_fallback
+from app.services.lang_detector import detect_language, _keyword_fallback, _title_signal
 
 
 # ---------------------------------------------------------------------------
@@ -43,6 +43,29 @@ def test_ambiguous_defaults_to_pt() -> None:
     with patch("app.services.lang_detector.detect", side_effect=LangDetectException(0, "")):
         result = detect_language("Dev", "ok")
     assert result == "pt"
+
+
+def test_title_signal_pt() -> None:
+    """PT title signals must short-circuit langdetect."""
+    with patch("app.services.lang_detector.detect") as mock_detect:
+        result = detect_language("Desenvolvedor React Júnior", "")
+    assert result == "pt"
+    mock_detect.assert_not_called()
+
+
+def test_title_signal_en() -> None:
+    """EN title signals must short-circuit langdetect."""
+    with patch("app.services.lang_detector.detect") as mock_detect:
+        result = detect_language("Frontend Developer Intern", "")
+    assert result == "en"
+    mock_detect.assert_not_called()
+
+
+def test_title_signal_no_match_falls_through() -> None:
+    """Title with no signal word should still call langdetect."""
+    with patch("app.services.lang_detector.detect", return_value="pt") as mock_detect:
+        detect_language("React TypeScript", "algum texto")
+    mock_detect.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -84,13 +107,12 @@ def test_unsupported_lang_falls_back_to_keyword() -> None:
 # Only first 500 chars of description are used
 # ---------------------------------------------------------------------------
 
-def test_truncates_description_to_500_chars() -> None:
-    """Ensure description beyond 500 chars is ignored."""
-    short_desc = "vaga empresa requisitos " * 5          # PT signal in first 500
-    long_tail = " job company requirements " * 200       # EN noise beyond 500
-    full_desc = short_desc + long_tail                   # total >> 500
+def test_truncates_description_to_800_chars() -> None:
+    """Ensure description beyond 800 chars is ignored."""
+    short_desc = "vaga empresa requisitos " * 10         # PT signal in first 800
+    long_tail = " job company requirements " * 200       # EN noise beyond 800
+    full_desc = short_desc + long_tail                   # total >> 800
 
     with patch("app.services.lang_detector.detect", side_effect=LangDetectException(0, "")):
         result = detect_language("", full_desc)
-    # Only first 500 chars processed; PT keywords dominate there
     assert result == "pt"
