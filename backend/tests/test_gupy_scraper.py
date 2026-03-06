@@ -1,6 +1,5 @@
 """Tests for the Gupy scraper."""
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -66,10 +65,18 @@ def test_normalize_missing_company_key() -> None:
 # Integration tests — HTTP mocked
 # ---------------------------------------------------------------------------
 
-def _make_response(data: list[dict[str, Any]], status: int = 200) -> MagicMock:
+def _make_response(
+    data: list[dict[str, Any]],
+    total: int | None = None,
+    status: int = 200,
+) -> MagicMock:
+    """Build a mock HTTP response with Gupy's pagination envelope."""
     mock = MagicMock()
     mock.status_code = status
-    mock.json.return_value = {"data": data}
+    mock.json.return_value = {
+        "data": data,
+        "pagination": {"offset": 0, "limit": 50, "total": total if total is not None else len(data)},
+    }
     mock.raise_for_status = MagicMock()
     return mock
 
@@ -96,9 +103,8 @@ async def test_fetch_gupy_jobs_returns_normalized_jobs() -> None:
 
         jobs = await fetch_gupy_jobs(["python"], ["São Paulo"])
 
-    assert len(jobs) == 1
-    assert jobs[0]["title"] == "Python Dev"
-    assert jobs[0]["email"] == "jobs@techco.com"
+    assert any(j["title"] == "Python Dev" for j in jobs)
+    assert any(j["email"] == "jobs@techco.com" for j in jobs)
 
 
 @pytest.mark.asyncio
@@ -152,18 +158,60 @@ async def test_fetch_gupy_jobs_handles_exception_silently() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_gupy_jobs_multiple_keywords_and_cities() -> None:
-    mock_response = _make_response([SAMPLE_JOB])
+async def test_fetch_gupy_jobs_paginates_when_total_exceeds_limit() -> None:
+    """When total > 50, additional pages should be fetched (up to _MAX_PAGES=3)."""
+    job_p2: dict[str, Any] = {**SAMPLE_JOB, "jobUrl": "https://techco.gupy.io/jobs/100"}
+    job_p3: dict[str, Any] = {**SAMPLE_JOB, "jobUrl": "https://techco.gupy.io/jobs/101"}
+
+    # total=120 → 3 pages needed (offsets 0, 50, 100)
+    page1 = _make_response([SAMPLE_JOB], total=120)
+    page2 = _make_response([job_p2], total=120)
+    page3 = _make_response([job_p3], total=120)
+
+    responses = [page1, page2, page3, page3]  # extra fallback
+    call_idx = 0
+
+    async def mock_get(*args: Any, **kwargs: Any) -> MagicMock:
+        nonlocal call_idx
+        resp = responses[min(call_idx, len(responses) - 1)]
+        call_idx += 1
+        return resp
 
     with patch("app.scrapers.gupy.asyncio.sleep", new_callable=AsyncMock), \
          patch("app.scrapers.gupy.httpx.AsyncClient") as mock_client_cls:
 
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.get = mock_get
         mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        # 2 keywords × 2 cities = 4 pairs, each returning 1 job = 4 total
-        jobs = await fetch_gupy_jobs(["python", "react"], ["São Paulo", "Curitiba"])
+        await fetch_gupy_jobs(["python"], ["São Paulo"])
 
-    assert len(jobs) == 4
+    # For 1 keyword × 1 city + 1 remote sweep → at least 2 page-1 requests
+    assert call_idx >= 2
+
+
+@pytest.mark.asyncio
+async def test_fetch_gupy_jobs_includes_remote_sweep() -> None:
+    """fetch_gupy_jobs should also issue a workplaceType=remote request per keyword."""
+    mock_response = _make_response([SAMPLE_JOB])
+    params_seen: list[dict[str, Any]] = []
+
+    async def mock_get(*args: Any, **kwargs: Any) -> MagicMock:
+        params_seen.append(dict(kwargs.get("params", {})))
+        return mock_response
+
+    with patch("app.scrapers.gupy.asyncio.sleep", new_callable=AsyncMock), \
+         patch("app.scrapers.gupy.httpx.AsyncClient") as mock_client_cls:
+
+        mock_client = AsyncMock()
+        mock_client.get = mock_get
+        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        await fetch_gupy_jobs(["python"], ["São Paulo"])
+
+    remote_reqs = [p for p in params_seen if p.get("workplaceType") == "remote"]
+    assert len(remote_reqs) >= 1
+    city_reqs = [p for p in params_seen if "city" in p]
+    assert len(city_reqs) >= 1

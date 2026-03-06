@@ -15,7 +15,7 @@ _ADZUNA_BASE = "https://api.adzuna.com/v1/api/jobs/br/search"
 _HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _PAGES = (1, 2, 3)
-_ADZUNA_KEYWORDS = [
+_DEFAULT_KEYWORDS = [
     "desenvolvedor react",
     "frontend developer",
     "react typescript",
@@ -81,10 +81,10 @@ async def fetch_adzuna_jobs(
     _keywords: list[str],
     _cities: list[str],
 ) -> list[dict]:
-    """Fetch BR jobs from Adzuna across pages 1-3 for fixed frontend keywords.
+    """Fetch BR jobs from Adzuna across pages 1-3.
 
-    The `_keywords` and `_cities` params are accepted for API consistency
-    but Adzuna uses its own fixed keyword list tuned for frontend roles.
+    Uses keywords from SEARCH_KEYWORDS env var (via _keywords param).
+    Falls back to a default frontend keyword list if _keywords is empty.
     Returns [] immediately if ADZUNA_APP_ID or ADZUNA_APP_KEY are not set.
     """
     app_id = os.getenv("ADZUNA_APP_ID", "")
@@ -94,10 +94,11 @@ async def fetch_adzuna_jobs(
         logger.warning("ADZUNA_APP_ID or ADZUNA_APP_KEY not set — skipping Adzuna scraper.")
         return []
 
+    keywords = _keywords if _keywords else _DEFAULT_KEYWORDS
     async with httpx.AsyncClient(headers=_HEADERS, timeout=20) as client:
         tasks = [
             _fetch_page(client, app_id, app_key, kw, page)
-            for kw in _ADZUNA_KEYWORDS
+            for kw in keywords
             for page in _PAGES
         ]
         results = await asyncio.gather(*tasks)

@@ -9,6 +9,7 @@ from app.database import engine
 from app.models import EmailLog, Job
 from app.scrapers.google_jobs import fetch_google_jobs
 from app.scrapers.gupy import fetch_gupy_jobs
+from app.scrapers.indeed_br import fetch_indeed_br_jobs
 from app.scrapers.jooble import fetch_jooble_jobs
 from app.scrapers.remoteok import fetch_remoteok_jobs
 from app.scrapers.adzuna import fetch_adzuna_jobs
@@ -109,6 +110,7 @@ async def run_daily_pipeline() -> dict[str, int]:
         fetch_adzuna_jobs(keywords, cities),
         fetch_arbeitnow_jobs(keywords, cities),
         fetch_programathor_jobs(keywords, cities),
+        fetch_indeed_br_jobs(keywords, cities),
         return_exceptions=True,
     )
 
@@ -178,6 +180,7 @@ async def scrape_only_pipeline() -> list[Job]:
         fetch_adzuna_jobs(keywords, cities),
         fetch_arbeitnow_jobs(keywords, cities),
         fetch_programathor_jobs(keywords, cities),
+        fetch_indeed_br_jobs(keywords, cities),
         return_exceptions=True,
     )
 

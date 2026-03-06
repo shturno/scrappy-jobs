@@ -13,8 +13,8 @@ _ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api"
 _HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _PAGES = (1, 2, 3)
-_ARBEITNOW_KEYWORDS = ["react", "frontend", "fullstack", "typescript"]
-_BRAZIL_TERMS = {"brazil", "brasil", "remote"}
+_DEFAULT_KEYWORDS = ["react", "frontend", "fullstack", "typescript"]
+_BRAZIL_TERMS = {"brazil", "brasil"}
 
 
 def _extract_email(text: Optional[str]) -> Optional[str]:
@@ -25,8 +25,6 @@ def _extract_email(text: Optional[str]) -> Optional[str]:
 
 
 def _is_relevant(job: dict) -> bool:
-    if job.get("remote") is True:
-        return True
     location = (job.get("location") or "").lower()
     return any(term in location for term in _BRAZIL_TERMS)
 
@@ -73,16 +71,17 @@ async def fetch_arbeitnow_jobs(
     _keywords: list[str],
     _cities: list[str],
 ) -> list[dict]:
-    """Fetch remote/Brazil jobs from Arbeitnow across pages 1-3.
+    """Fetch BR-located jobs from Arbeitnow across pages 1-3.
 
-    The `_keywords` and `_cities` params are accepted for API consistency
-    but Arbeitnow uses its own fixed keyword list tuned for frontend roles.
-    Filters results to jobs that are remote or located in Brazil.
+    Uses the keywords from SEARCH_KEYWORDS env var (via _keywords param).
+    Falls back to a default frontend keyword list if _keywords is empty.
+    Filters results to jobs located in Brazil.
     """
+    keywords = _keywords if _keywords else _DEFAULT_KEYWORDS
     async with httpx.AsyncClient(headers=_HEADERS, timeout=20) as client:
         tasks = [
             _fetch_page(client, kw, page)
-            for kw in _ARBEITNOW_KEYWORDS
+            for kw in keywords
             for page in _PAGES
         ]
         results = await asyncio.gather(*tasks)

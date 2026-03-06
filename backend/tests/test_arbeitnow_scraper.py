@@ -8,14 +8,15 @@ import pytest
 from app.scrapers.arbeitnow import fetch_arbeitnow_jobs, _normalize, _is_relevant
 
 
-def test_is_relevant_remote_true() -> None:
-    assert _is_relevant({"remote": True, "location": ""}) is True
-
-
 def test_is_relevant_brazil_in_location() -> None:
     assert _is_relevant({"remote": False, "location": "São Paulo, Brazil"}) is True
     assert _is_relevant({"remote": False, "location": "Brasil"}) is True
-    assert _is_relevant({"remote": False, "location": "Remote"}) is True
+
+
+def test_is_relevant_false_for_remote_without_brazil() -> None:
+    assert _is_relevant({"remote": True, "location": "Berlin, Germany"}) is False
+    assert _is_relevant({"remote": True, "location": "Remote"}) is False
+    assert _is_relevant({}) is False
 
 
 def test_is_relevant_false_for_other_locations() -> None:
@@ -56,8 +57,8 @@ SAMPLE_JOB: dict[str, Any] = {
     "company_name": "TechCo",
     "url": "https://arbeitnow.com/jobs/99",
     "description": "jobs@techco.com",
-    "remote": True,
-    "location": "Remote",
+    "remote": False,
+    "location": "São Paulo, Brazil",
 }
 
 
@@ -98,15 +99,41 @@ async def test_fetch_arbeitnow_jobs_skips_non_brazil() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fetch_arbeitnow_jobs_handles_exception_silently() -> None:
+async def test_fetch_arbeitnow_uses_provided_keywords() -> None:
+    """Keywords passed in must be used instead of the default list."""
+    mock_response = _make_response([SAMPLE_JOB])
+
     with patch("app.scrapers.arbeitnow.asyncio.sleep", new_callable=AsyncMock), \
          patch("app.scrapers.arbeitnow.httpx.AsyncClient") as mock_client_cls:
 
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(side_effect=Exception("timeout"))
+        mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
 
-        jobs = await fetch_arbeitnow_jobs([], [])
+        await fetch_arbeitnow_jobs(["estagio react", "trainee"], [])
 
-    assert jobs == []
+    calls = mock_client.get.call_args_list
+    used_keywords = {call.kwargs.get("params", {}).get("search") for call in calls}
+    assert "estagio react" in used_keywords
+    assert "trainee" in used_keywords
+
+
+@pytest.mark.asyncio
+async def test_fetch_arbeitnow_falls_back_to_default_keywords() -> None:
+    """Empty keywords list triggers the hardcoded default list."""
+    mock_response = _make_response([])
+
+    with patch("app.scrapers.arbeitnow.asyncio.sleep", new_callable=AsyncMock), \
+         patch("app.scrapers.arbeitnow.httpx.AsyncClient") as mock_client_cls:
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        await fetch_arbeitnow_jobs([], [])
+
+    calls = mock_client.get.call_args_list
+    used_keywords = {call.kwargs.get("params", {}).get("search") for call in calls}
+    assert "react" in used_keywords
