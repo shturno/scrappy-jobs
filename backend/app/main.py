@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -15,12 +17,29 @@ from app.api.pipeline import router as pipeline_router
 from app.database import create_db_and_tables
 from app.dependencies.rate_limit import limiter
 
+logger = logging.getLogger(__name__)
+
+_MAX_RETRIES = 10
+_RETRY_BASE_DELAY = 2  # seconds
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # Startup: create database and tables
-    create_db_and_tables()
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            create_db_and_tables()
+            logger.info("Database ready after %d attempt(s).", attempt)
+            break
+        except Exception as exc:
+            if attempt == _MAX_RETRIES:
+                raise
+            delay = min(_RETRY_BASE_DELAY * attempt, 30)
+            logger.warning(
+                "DB not ready (attempt %d/%d): %s — retrying in %ds",
+                attempt, _MAX_RETRIES, exc, delay,
+            )
+            await asyncio.sleep(delay)
     yield
-    # Shutdown logic (if any) would go here
 
 app = FastAPI(title="JobScout API", version="0.1.0", lifespan=lifespan)
 
