@@ -1,7 +1,11 @@
-"""Indeed BR scraper — RSS-based job search for Brazil.
+"""Indeed BR scraper — RSS via ScraperAPI proxy to bypass IP blocking.
 
-Uses Indeed's public RSS feeds (?rss=1) to avoid anti-bot 403 blocks
-that affect HTML scraping from cloud IPs (Railway, etc.).
+Indeed blocks requests from cloud/datacenter IPs (Railway, GitHub Actions, etc.).
+ScraperAPI routes requests through residential IPs, resolving the 403 issue.
+
+Requires env var: SCRAPER_API_KEY (https://www.scraperapi.com — free tier: 1000 req/mo)
+Fallback: if key is absent, scraper is skipped silently.
+Controlled by: ENABLE_INDEED_BR env var (default 'true').
 """
 
 import asyncio
@@ -10,18 +14,18 @@ import os
 import re
 import xml.etree.ElementTree as ET
 from typing import Optional
-from urllib.parse import quote_plus
+from urllib.parse import urlencode
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_RSS_URL = "https://br.indeed.com/jobs"
+_INDEED_RSS_URL = "https://br.indeed.com/jobs"
+_SCRAPERAPI_URL = "http://api.scraperapi.com"
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0"
     ),
-    "Accept": "application/rss+xml, application/xml, text/xml, */*",
     "Accept-Language": "pt-BR,pt;q=0.9",
 }
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
@@ -35,8 +39,16 @@ def _extract_email(text: Optional[str]) -> Optional[str]:
     return match.group(0) if match else None
 
 
+def _build_url(keyword: str, city: str, api_key: str) -> str:
+    """Build a ScraperAPI-proxied URL for the Indeed BR RSS feed."""
+    target_params = urlencode({"q": keyword, "l": city, "rss": "1", "limit": "20", "sort": "date"})
+    target_url = f"{_INDEED_RSS_URL}?{target_params}"
+    proxy_params = urlencode({"api_key": api_key, "url": target_url})
+    return f"{_SCRAPERAPI_URL}?{proxy_params}"
+
+
 def _parse_rss(xml_text: str) -> list[dict]:
-    """Parse Indeed RSS feed XML into job dicts."""
+    """Parse Indeed RSS XML into job dicts."""
     results: list[dict] = []
     try:
         root = ET.fromstring(xml_text)
@@ -81,31 +93,25 @@ def _parse_rss(xml_text: str) -> list[dict]:
 
 
 async def _fetch_rss(
-    client: httpx.AsyncClient, keyword: str, city: str
+    client: httpx.AsyncClient, keyword: str, city: str, api_key: str
 ) -> list[dict]:
-    params = {
-        "q": keyword,
-        "l": city,
-        "rss": "1",
-        "limit": "20",
-        "sort": "date",
-    }
+    url = _build_url(keyword, city, api_key)
     try:
         await asyncio.sleep(_REQUEST_DELAY)
-        r = await client.get(_RSS_URL, params=params)
+        r = await client.get(url)
         if r.status_code == 429:
-            logger.warning("Indeed BR RSS 429 for '%s'/'%s' — skipping", keyword, city)
+            logger.warning("Indeed BR 429 for '%s'/'%s' — skipping", keyword, city)
             return []
         if r.status_code != 200:
             logger.warning(
-                "Indeed BR RSS %d for '%s'/'%s'", r.status_code, keyword, city
+                "Indeed BR %d for '%s'/'%s'", r.status_code, keyword, city
             )
             return []
         jobs = _parse_rss(r.text)
-        logger.debug("Indeed BR RSS '%s'/'%s': %d jobs", keyword, city, len(jobs))
+        logger.debug("Indeed BR '%s'/'%s': %d jobs", keyword, city, len(jobs))
         return jobs
     except Exception as exc:
-        logger.warning("Indeed BR RSS error ['%s'/'%s']: %s", keyword, city, exc)
+        logger.warning("Indeed BR error ['%s'/'%s']: %s", keyword, city, exc)
         return []
 
 
@@ -113,24 +119,28 @@ async def fetch_indeed_br_jobs(
     keywords: list[str],
     cities: list[str],
 ) -> list[dict]:
-    """Scrape Indeed BR via RSS for every keyword × city pair.
+    """Scrape Indeed BR via ScraperAPI → RSS for every keyword × city pair.
 
-    Controlled by ENABLE_INDEED_BR env var (default 'true').
-    Requests are made sequentially to respect rate limits.
-    Returns [] if disabled or on any unrecoverable error.
+    Requires SCRAPER_API_KEY env var. Returns [] if missing or disabled.
+    Requests are sequential with delays to respect ScraperAPI rate limits.
     """
     if os.getenv("ENABLE_INDEED_BR", "true").lower() == "false":
         logger.info("Indeed BR scraper disabled via ENABLE_INDEED_BR=false")
         return []
 
+    api_key = os.getenv("SCRAPER_API_KEY", "")
+    if not api_key:
+        logger.warning("SCRAPER_API_KEY not set — skipping Indeed BR scraper.")
+        return []
+
     jobs: list[dict] = []
     async with httpx.AsyncClient(
-        headers=_HEADERS, timeout=20, follow_redirects=True
+        headers=_HEADERS, timeout=30, follow_redirects=True
     ) as client:
         for kw in keywords:
             for city in cities:
-                batch = await _fetch_rss(client, kw, city)
+                batch = await _fetch_rss(client, kw, city, api_key)
                 jobs.extend(batch)
 
-    logger.info("Indeed BR RSS: %d jobs found", len(jobs))
+    logger.info("Indeed BR: %d jobs found", len(jobs))
     return jobs
