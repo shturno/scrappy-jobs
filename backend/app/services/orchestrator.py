@@ -15,6 +15,31 @@ from app.scrapers.remoteok import fetch_remoteok_jobs
 from app.scrapers.adzuna import fetch_adzuna_jobs
 from app.scrapers.arbeitnow import fetch_arbeitnow_jobs
 from app.scrapers.programathor import fetch_programathor_jobs
+from app.scrapers.amazon import fetch_amazon_jobs
+from app.scrapers.google_careers import fetch_google_careers_jobs
+from app.scrapers.microsoft_careers import fetch_microsoft_careers_jobs
+from app.scrapers.meta_careers import fetch_meta_careers_jobs
+from app.scrapers.apple_careers import fetch_apple_careers_jobs
+from app.scrapers.netflix import fetch_netflix_jobs
+from app.scrapers.spotify import fetch_spotify_jobs
+from app.scrapers.uber import fetch_uber_jobs
+from app.scrapers.airbnb import fetch_airbnb_jobs
+from app.scrapers.salesforce import fetch_salesforce_jobs
+from app.scrapers.sap_careers import fetch_sap_careers_jobs
+from app.scrapers.oracle_careers import fetch_oracle_careers_jobs
+from app.scrapers.ibm_careers import fetch_ibm_careers_jobs
+from app.scrapers.samsung_br import fetch_samsung_br_jobs
+from app.scrapers.dell_careers import fetch_dell_careers_jobs
+from app.scrapers.nubank import fetch_nubank_jobs
+from app.scrapers.ifood import fetch_ifood_jobs
+from app.scrapers.mercadolivre import fetch_mercadolivre_jobs
+from app.scrapers.picpay import fetch_picpay_jobs
+from app.scrapers.stone import fetch_stone_jobs
+from app.scrapers.rappi import fetch_rappi_jobs
+from app.scrapers.inter import fetch_inter_jobs
+from app.scrapers.c6bank import fetch_c6bank_jobs
+from app.scrapers.itau import fetch_itau_jobs
+from app.scrapers.santander import fetch_santander_jobs
 from app.services.email_sender import RateLimitExceeded, send_email
 from app.services.email_enricher import enrich_email
 from app.services.lang_detector import detect_language
@@ -112,6 +137,31 @@ async def run_daily_pipeline() -> dict[str, int]:
         fetch_arbeitnow_jobs(keywords, cities),
         fetch_programathor_jobs(keywords, cities),
         fetch_indeed_br_jobs(keywords, cities),
+        fetch_amazon_jobs(keywords, cities),
+        fetch_google_careers_jobs(keywords, cities),
+        fetch_microsoft_careers_jobs(keywords, cities),
+        fetch_meta_careers_jobs(keywords, cities),
+        fetch_apple_careers_jobs(keywords, cities),
+        fetch_netflix_jobs(keywords, cities),
+        fetch_spotify_jobs(keywords, cities),
+        fetch_uber_jobs(keywords, cities),
+        fetch_airbnb_jobs(keywords, cities),
+        fetch_salesforce_jobs(keywords, cities),
+        fetch_sap_careers_jobs(keywords, cities),
+        fetch_oracle_careers_jobs(keywords, cities),
+        fetch_ibm_careers_jobs(keywords, cities),
+        fetch_samsung_br_jobs(keywords, cities),
+        fetch_dell_careers_jobs(keywords, cities),
+        fetch_nubank_jobs(keywords, cities),
+        fetch_ifood_jobs(keywords, cities),
+        fetch_mercadolivre_jobs(keywords, cities),
+        fetch_picpay_jobs(keywords, cities),
+        fetch_stone_jobs(keywords, cities),
+        fetch_rappi_jobs(keywords, cities),
+        fetch_inter_jobs(keywords, cities),
+        fetch_c6bank_jobs(keywords, cities),
+        fetch_itau_jobs(keywords, cities),
+        fetch_santander_jobs(keywords, cities),
         return_exceptions=True,
     )
 
@@ -189,6 +239,31 @@ async def scrape_only_pipeline() -> list[Job]:
         fetch_arbeitnow_jobs(keywords, cities),
         fetch_programathor_jobs(keywords, cities),
         fetch_indeed_br_jobs(keywords, cities),
+        fetch_amazon_jobs(keywords, cities),
+        fetch_google_careers_jobs(keywords, cities),
+        fetch_microsoft_careers_jobs(keywords, cities),
+        fetch_meta_careers_jobs(keywords, cities),
+        fetch_apple_careers_jobs(keywords, cities),
+        fetch_netflix_jobs(keywords, cities),
+        fetch_spotify_jobs(keywords, cities),
+        fetch_uber_jobs(keywords, cities),
+        fetch_airbnb_jobs(keywords, cities),
+        fetch_salesforce_jobs(keywords, cities),
+        fetch_sap_careers_jobs(keywords, cities),
+        fetch_oracle_careers_jobs(keywords, cities),
+        fetch_ibm_careers_jobs(keywords, cities),
+        fetch_samsung_br_jobs(keywords, cities),
+        fetch_dell_careers_jobs(keywords, cities),
+        fetch_nubank_jobs(keywords, cities),
+        fetch_ifood_jobs(keywords, cities),
+        fetch_mercadolivre_jobs(keywords, cities),
+        fetch_picpay_jobs(keywords, cities),
+        fetch_stone_jobs(keywords, cities),
+        fetch_rappi_jobs(keywords, cities),
+        fetch_inter_jobs(keywords, cities),
+        fetch_c6bank_jobs(keywords, cities),
+        fetch_itau_jobs(keywords, cities),
+        fetch_santander_jobs(keywords, cities),
         return_exceptions=True,
     )
 
